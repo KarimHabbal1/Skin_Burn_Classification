@@ -17,69 +17,74 @@ function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const fileInputRef = useRef(null);
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
+  const handleImageChange = (event) => {
+    const file = event.target.files[0];
     if (file) {
       setSelectedImage(file);
-      setPreviewUrl(URL.createObjectURL(file));
-      setResult(null);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
+  const handleDrop = (event) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files[0];
     if (file && file.type.startsWith('image/')) {
       setSelectedImage(file);
-      setPreviewUrl(URL.createObjectURL(file));
-      setResult(null);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
-
-  const analyzeImage = () => {
-    if (!selectedImage) return;
-    
-    setIsAnalyzing(true);
-    
-    // Simulating API call to quantum-assisted ML model
-    setTimeout(() => {
-      // Mock result - in a real app, this would come from your backend
-      const burnDegrees = ["First Degree", "Second Degree", "Third Degree"];
-      const randomIndex = Math.floor(Math.random() * burnDegrees.length);
-      
-      setResult({
-        degree: burnDegrees[randomIndex],
-        confidence: Math.floor(Math.random() * 20 + 80), // 80-99% confidence
-        recommendations: getRecommendations(burnDegrees[randomIndex])
-      });
-      
-      setIsAnalyzing(false);
-    }, 2000);
-  };
-
-  const getRecommendations = (degree) => {
-    switch(degree) {
-      case "First Degree":
-        return "Apply cool water for 10-15 minutes. Use aloe vera or moisturizer. Take pain relievers if needed. No medical attention required unless it doesn't improve in a few days.";
-      case "Second Degree":
-        return "Run cool water over the burn. Don't break blisters. Apply antibiotic ointment. Seek medical attention if the burn is larger than 3 inches or on a sensitive area.";
-      case "Third Degree":
-        return "URGENT: Seek immediate medical attention. Do not remove clothing stuck to the burn. Do not apply ointments. Cover with clean cloth until medical help arrives.";
-      default:
-        return "Please consult a healthcare professional for proper assessment and treatment.";
-    }
+  const handleDragOver = (event) => {
+    event.preventDefault();
   };
 
   const resetForm = () => {
-    setSelectedImage(null);
     setPreviewUrl(null);
+    setSelectedImage(null);
     setResult(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const analyzeImage = async () => {
+    if (!selectedImage) return;
+
+    setIsAnalyzing(true);
+    setResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedImage);
+
+      const response = await fetch('http://localhost:8000/analyze', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Analysis failed');
+      }
+
+      const data = await response.json();
+      setResult(data);
+    } catch (error) {
+      console.error('Error analyzing image:', error);
+      setResult({
+        degree: "Error",
+        confidence: 0,
+        recommendations: "An error occurred while analyzing the image. Please try again."
+      });
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
